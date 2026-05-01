@@ -2,8 +2,8 @@ name: Update VPN Subscription
 
 on:
   schedule:
-    - cron: '0 */2 * * *'  # каждые 2 часа
-  workflow_dispatch:         # ручной запуск кнопкой
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,29 +12,29 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: pip install requests
-      
+
       - name: Collect keys
         run: python collector.py
-      
+
       - name: Check keys
         run: python checker.py
-      
+
       - name: Build subscription
         run: python builder.py
-      
+
       - name: Commit and push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add output/
-          git commit -m "Update subscription $(date -u '+%Y-%m-%d %H:%M UTC')" || exit 0
+          git diff --staged --quiet || git commit -m "Update $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push
