@@ -55,6 +55,9 @@ def score_key(key):
         _, port = parse_host_port(key)
         if port in [443, 8443, 2053, 2083, 2087, 2096]:
             score += 3
+            # Исключаем ключи с плохим скором полностью
+        if score < 3:
+            return key, False, 0
         elif port in [80, 8080]:
             score -= 1
     except:
@@ -87,7 +90,7 @@ def check_all(keys, max_workers=150):
     keys = [k for k, s in keys_scored]
 
     # Берём топ 1500 по оценке
-    keys = keys[:1500]
+    keys = keys[:2000]
     print(f"Отобрано для проверки: {len(keys)}")
 
     results = []
