@@ -47,5 +47,5 @@ def collect():
     print(f"\nВсего собрано: {len(all_keys)} ключей")
     return all_keys
 
-if name == '__main__':
+if __name__ == '__main__':
     collect()
