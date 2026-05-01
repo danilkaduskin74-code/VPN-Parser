@@ -2,7 +2,7 @@ import base64
 import os
 from datetime import datetime
 
-def build_subscription(input_file='output/working.txt', output_file='output/subscription.txt', limit=200):
+def build_subscription(input_file='output/working.txt', output_file='output/subscription.txt', limit=500):
     with open(input_file) as f:
         keys = [l.strip() for l in f if l.strip()]
     
