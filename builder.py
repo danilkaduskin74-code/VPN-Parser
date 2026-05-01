@@ -23,5 +23,5 @@ def build_subscription(input_file='output/working.txt', output_file='output/subs
     
     print(f"Подписка собрана: {len(keys)} ключей → {output_file}")
 
-if name == '__main__':
+if __name__ == '__main__':
     build_subscription()
