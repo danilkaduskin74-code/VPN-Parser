@@ -213,7 +213,7 @@ def check_all(keys, max_workers=20):
     print(f"\nРабочих ключей: {len(working)} из {total}")
     return working
 
-if name == '__main__':
+if __name__ == '__main__':
     with open('output/raw.txt') as f:
         keys = [l.strip() for l in f if l.strip()]
     working = check_all(keys)
