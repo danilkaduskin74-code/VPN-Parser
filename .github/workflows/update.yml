@@ -20,7 +20,14 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests aiohttp
+
+      - name: Download Xray
+        run: |
+          wget -q https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -O xray.zip
+          unzip -q xray.zip xray
+          chmod +x xray
+          ./xray version
 
       - name: Collect keys
         run: python collector.py
