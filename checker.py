@@ -1,4 +1,4 @@
-[02.05.2026 9:16] 𝙳𝙰𝙽𝚈𝙰: import socket
+import socket
 import re
 import base64
 import json
