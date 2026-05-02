@@ -1,4 +1,4 @@
-import socket
+[02.05.2026 9:16] 𝙳𝙰𝙽𝚈𝙰: import socket
 import re
 import base64
 import json
@@ -18,34 +18,64 @@ def parse_host_port(key):
         pass
     return None, None
 
+def parse_params(key):
+    try:
+        match = re.search(r'\?([^#]*)', key)
+        if not match:
+            return {}
+        return dict(p.split('=', 1) for p in match.group(1).split('&') if '=' in p)
+    except:
+        return {}
+
 def score_key(key):
     score = 0
     key_lower = key.lower()
+    params = parse_params(key)
+
+    # Reality — лучший вариант для РФ
     if 'reality' in key_lower:
+        score += 15
+    if 'xtls-rprx-vision' in key_lower or params.get('flow', '') == 'xtls-rprx-vision':
         score += 10
-    if key.startswith('vless://'):
+
+    # Маскировка под российские сервисы — хороший знак
+    sni = params.get('sni', '').lower()
+    if any(ru in sni for ru in ['userapi', 'vk.com', 'vk.me', 'ok.ru', 'yandex', 'mail.ru']):
+        score += 8
+    # Маскировка под крупные западные сервисы тоже хорошо
+    if any(s in sni for s in ['apple', 'microsoft', 'amazon', 'google', 'cloudflare']):
         score += 5
-    if key.startswith('trojan://'):
+
+    # Fingerprint браузера — важен для Reality
+    fp = params.get('fp', '').lower()
+    if fp in ['chrome', 'firefox', 'safari']:
         score += 4
-    if key.startswith('vmess://'):
+    elif fp == 'qq':
         score += 2
-    if 'fp=chrome' in key_lower or 'fp=firefox' in key_lower:
+
+    # Публичный ключ есть — значит Reality настроен правильно
+    if params.get('pbk'):
         score += 3
-    if 'sni=' in key_lower:
-        score += 2
-    if 'pbk=' in key_lower:
-        score += 3
-    if '127.0.0.1' in key or 'localhost' in key:
-        score -= 20
+
+    # Порты которые не блокируют операторы
     try:
         _, port = parse_host_port(key)
         if port in [443, 8443, 2053, 2083, 2087, 2096]:
-            score += 3
+            score += 5
+        elif port in [80, 8080]:
+            score -= 3
     except:
         pass
+
+    # Плохие признаки
+    if '127.0.0.1' in key or 'localhost' in key:
+        score -= 50
+    if not params.get('pbk') and 'reality' in key_lower:
+        score -= 5  # Reality без публичного ключа — сломан
+
     return score
 
-def tcp_check(key, timeout=3):
+def tcp_check(key, timeout=4):
     host, port = parse_host_port(key)
     if not host or not port:
         return key, False
@@ -59,17 +89,20 @@ def tcp_check(key, timeout=3):
         return key, False
 
 def check_all(keys, max_workers=150):
-    keys = [k for k in keys if any(k.startswith(p) for p in
-            ['vless://', 'trojan://', 'vmess://', 'ss://'])]
+    # Фильтр — только Reality и XTLS
+    keys = [k for k in keys if any(k.startswith(p) for p in ['vless://', 'trojan://'])]
+    print(f"Всего ключей: {len(keys)}")
 
-    # Фильтруем ключи с низким скором
-    keys = [k for k in keys if score_key(k) >= 3]
+    # Убираем явно плохие (скор ниже 10)
+    keys = [k for k in keys if score_key(k) >= 10]
     print(f"После фильтрации по качеству: {len(keys)}")
 
-    # Сортируем лучшие вперёд
+    # Сортируем — лучшие вперёд
     keys.sort(key=lambda k: score_key(k), reverse=True)
-    keys = keys[:2000]
-    print(f"Отобрано для проверки: {len(keys)}")
+
+    # Берём топ 1000
+    keys = keys[:1000]
+    print(f"Отобрано для TCP проверки: {len(keys)}")
 
     working = []
     total = len(keys)
@@ -82,16 +115,23 @@ def check_all(keys, max_workers=150):
             done += 1
             if alive:
                 working.append(key)
-            if done % 150 == 0:
+            if done % 100 == 0:
                 print(f"Проверено: {done}/{total}, живых: {len(working)}")
 
-    # Сортируем результат по скору
+    # Финальная сортировка по скору
     working.sort(key=lambda k: score_key(k), reverse=True)
 
-    print(f"\nЖивых: {len(working)} из {total}")
-    print(f"Reality: {sum(1 for k in working if 'reality' in k.lower())}, "
-          f"Trojan: {sum(1 for k in working if k.startswith('trojan://'))}, "
-          f"VMess: {sum(1 for k in working if k.startswith('vmess://'))}")
+    # Статистика
+    reality_count = sum(1 for k in working if 'reality' in k.lower())
+    vision_count = sum(1 for k in working if 'xtls-rprx-vision' in k.lower())
+    ru_sni = sum(1 for k in working if any(
+        s in parse_params(k).get('sni', '').lower()
+        for s in ['userapi', 'vk', 'yandex', 'mail.ru', 'ok.ru']
+    ))
+print(f"\nЖивых: {len(working)} из {total}")
+    print(f"Reality: {reality_count}")
+    print(f"XTLS-Vision: {vision_count}")
+    print(f"С RU маскировкой: {ru_sni}")
     return working
 
 if __name__ == '__main__':
